@@ -121,11 +121,11 @@ namespace DesktopApp
                 SetLoading(true);
                 SetDisableControls(true);
                 var fileName = $"{Guid.NewGuid()}.csv";
-                using var streamReader = new StreamReader(_selectedCsvFileName);
-                using var csvReader = new CsvReader(streamReader);
                 using var fileStream = File.Create(fileName);
+                using var streamReader = new StreamReader(_selectedCsvFileName);
                 using var streamWriter = new StreamWriter(fileStream) { AutoFlush = true };
                 using var csvWriter = new CsvWriter(streamWriter);
+                using var csvReader = new CsvReader(streamReader);
                 var options = new TypeConverterOptions { Formats = new[] { "MM/dd/yyyy hh:mm" } };
                 csvWriter.Configuration.TypeConverterOptionsCache.AddOptions<DateTime>(options);
                 WriteHeader(csvWriter);
