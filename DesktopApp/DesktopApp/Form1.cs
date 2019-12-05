@@ -2,14 +2,29 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using CsvHelper;
 using CsvHelper.TypeConversion;
 
 namespace DesktopApp
 {
+
     public partial class Form1 : Form
     {
+        public static string[] BannedWords =
+        {
+            "Bad",
+            "Konfig",
+            "Error",
+            "Not Connect",
+            "var7",
+            "Invalid Expression Syntax",
+            "#WERT",
+            "#NAME?",
+            "Open Auto",
+            "Stopped Manual"
+        };
         private string _selectedCsvFileName;
         public Form1()
         {
@@ -80,7 +95,6 @@ namespace DesktopApp
                 });
             }
         }
-
         private void WriteHeader(IWriter csvWriter)
         {
             var textBoxes = Controls.Find("txt", true);
@@ -102,24 +116,58 @@ namespace DesktopApp
                 {
                     if (DateTime.TryParse(str, out DateTime date))
                     {
-                        csvWriter.WriteField(date);
+                        var formattedDate = date.ToString("dd/MM/yyyy HH:mm:ss");
+                        csvWriter.WriteField(formattedDate);
                     }
                     else if (double.TryParse(str, out double value))
                     {
                         csvWriter.WriteField(value);
                     }
                     else
-                        csvWriter.WriteField(str);
+                    {
+                        var field = ClearField(str);
+                        field = field.Replace("ON", 1.ToString()).Replace("OFF", 0.ToString());
+                        csvWriter.WriteField(field);
+                    }
                 }
                 csvWriter.NextRecord();
+            }
+        }
+
+        private static string ClearField(string str)
+        {
+            foreach (var bannedWord in BannedWords)
+            {
+                if (str.Contains(bannedWord))
+                {
+                    str = str.Replace(bannedWord, string.Empty);
+                }
+            }
+
+            return str;
+        }
+
+        private void ClearTextInput()
+        {
+            var textBoxes = Controls.Find("txt", true);
+            foreach (var item in textBoxes)
+            {
+                Controls.Remove(item);
             }
         }
         private void btnDownload_Click(object sender, EventArgs e)
         {
             try
             {
+                if (string.IsNullOrEmpty(_selectedCsvFileName))
+                {
+                    MessageBox.Show("Please select file");
+                    return;
+                }
+                var button = (Button) sender;
+                button.Visible = false;
+                ClearTextInput();
                 SetLoading(true);
-                SetDisableControls(true);
                 var fileName = $"{Guid.NewGuid()}.csv";
                 using var fileStream = File.Create(fileName);
                 using var streamReader = new StreamReader(_selectedCsvFileName);
@@ -131,16 +179,19 @@ namespace DesktopApp
                 WriteHeader(csvWriter);
                 WriteContents(csvReader, csvWriter);
                 SetLoading(false);
-                SetDisableControls(false);
                 OpenCreatedFile(fileName);
+                _selectedCsvFileName = string.Empty;
+                button.Visible = true;
             }
             catch (Exception exception)
             {
                 MessageBox.Show(exception.Message);
                 SetLoading(false);
-                SetDisableControls(false);
+                ClearTextInput();
             }
         }
+
+
         private static void OpenCreatedFile(string fileName)
         {
             ProcessStartInfo startInfo = new ProcessStartInfo
